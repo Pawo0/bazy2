@@ -652,84 +652,253 @@ Struktura oparta na osobnych kolekcjach z referencjami do obiektów w innych kol
 * `pracownicy`: przechowuje dane personalne pracowników
 
   ```json
-  {
-    "_id": ObjectId(),
-    "imie": "Tomasz",
-    "nazwisko": "Kowalski",
-    "email": "t.kowalski@firma.pl",
-  	"telefon": "+48 600 987 654",
-  	"ranga": "administrator"
-  }
+    db.createCollection("pracownicy", {
+      validator: {
+        $jsonSchema: {
+          bsonType: "object",
+          required: ["imie", "nazwisko", "email", "telefon", "ranga"],
+          properties: {
+            _id: {
+              bsonType: "objectId"
+            },
+            imie: {
+              bsonType: "string",
+              description: "Imię pracownika - pole wymagane"
+            },
+            nazwisko: {
+              bsonType: "string",
+              description: "Nazwisko pracownika - pole wymagane"
+            },
+            email: {
+              bsonType: "string",
+              pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+              description: "Email pracownika w poprawnym formacie - pole wymagane"
+            },
+            telefon: {
+              bsonType: "string",
+              pattern: "^\\+[0-9]{2}\\s[0-9]{3}\\s[0-9]{3}\\s[0-9]{3}$",
+              description: "Numer telefonu w formacie +XX XXX XXX XXX - pole wymagane"
+            },
+            ranga: {
+              bsonType: "string",
+              enum: ["administrator", "pracownik", "manager"],
+              description: "Ranga pracownika (administrator, pracownik lub manager) - pole wymagane"
+            }
+          }
+        }
+      }
+    });
   ```
 
 * `klienci`: dane kontaktowe i identyfikacyjne klientów
 
   ```json
-  {
-    "_id": ObjectId(),
-    "imie": "Anna",
-    "nazwisko": "Nowak",
-    "email": "anna.nowak@example.com",
-  	"telefon": "+48 501 234 567",
-  	"ranga": "premium",
-  	"adres": {
-    	"ulica": "Lipowa 12",
-    	"miasto": "Warszawa",
-    	"kod_pocztowy": "00-123"
-  	}
-  }
+    db.createCollection("klienci", {
+      validator: {
+        $jsonSchema: {
+          bsonType: "object",
+          required: ["imie", "nazwisko", "email", "telefon", "ranga"],
+          properties: {
+            _id: {
+              bsonType: "objectId"
+            },
+            imie: {
+              bsonType: "string",
+              description: "Imię klienta - pole wymagane"
+            },
+            nazwisko: {
+              bsonType: "string",
+              description: "Nazwisko klienta - pole wymagane"
+            },
+            email: {
+              bsonType: "string",
+              pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+              description: "Email klienta w poprawnym formacie - pole wymagane"
+            },
+            telefon: {
+              bsonType: "string",
+              pattern: "^\\+[0-9]{2}\\s[0-9]{3}\\s[0-9]{3}\\s[0-9]{3}$",
+              description: "Numer telefonu w formacie +XX XXX XXX XXX - pole wymagane"
+            },
+            ranga: {
+              bsonType: "string",
+              enum: ["standard", "premium", "vip"],
+              description: "Ranga klienta - pole wymagane"
+            },
+            adres: {
+              bsonType: "object",
+              required: ["ulica", "miasto", "kod_pocztowy"],
+              properties: {
+                ulica: {
+                  bsonType: "string",
+                  description: "Ulica i numer budynku"
+                },
+                miasto: {
+                  bsonType: "string",
+                  description: "Miasto"
+                },
+                kod_pocztowy: {
+                  bsonType: "string",
+                  pattern: "^[0-9]{2}-[0-9]{3}$",
+                  description: "Kod pocztowy w formacie XX-XXX"
+                }
+              }
+            }
+          }
+        }
+      }
+    });
   ```
 
 * `produkty`: płyty z filmami lub muzyką wraz z informacją o stanie magazynowym
 
   ```json
-  {
-    "_id": ObjectId(),
-    "tytul": "Incepcja",
-    "typ": "film",
-    "kategoria": "sci-fi",
-    "ilosc_w_magazynie": 10,
-    "ilosc_zarezerwowana": 2,
-    "ilosc_wypozyczona": 3
-  }
+
+    db.createCollection("produkty", {
+      validator: {
+        $jsonSchema: {
+          bsonType: "object",
+          required: ["tytul", "typ", "kategoria", "ilosc_w_magazynie"],
+          properties: {
+            _id: {
+              bsonType: "objectId"
+            },
+            nazwa: {
+              bsonType: "string",
+              description: "Nazwa produktu - pole wymagane"
+            },
+            typ: {
+              bsonType: "string",
+              enum: ["film", "muzyka", "audiobook", "kaseta"],
+              description: "Typ produktu - pole wymagane"
+            },
+            kategoria: {
+              bsonType: "string",
+              description: "Kategoria produktu - pole wymagane"
+            },
+            ilosc_w_magazynie: {
+              bsonType: "int",
+              minimum: 0,
+              description: "Ilość produktów w magazynie - pole wymagane"
+            },
+            ilosc_zarezerwowana: {
+              bsonType: "int",
+              minimum: 0,
+              description: "Ilość zarezerwowanych produktów"
+            },
+            ilosc_wypozyczona: {
+              bsonType: "int",
+              minimum: 0,
+              description: "Ilość wypożyczonych produktów"
+            }
+          }
+        }
+      }
+    });
+
   ```
 
 * `zamowienia`: informacje o wypożyczeniach i rezerwacjach z referencją do klienta, pracownika i produktów
 
   ```json
-  {
-    "_id": ObjectId(),
-    "klient_id": ObjectId(),
-    "pracownik_id": ObjectId(),
-    "produkty": [
-      {
-        "produkt_id": ObjectId(),
-        "typ": "wypozyczenie",
-        "data_start": ISODate(),
-        "data_koniec": ISODate()
+
+    db.createCollection("zamowienia", {
+      validator: {
+        $jsonSchema: {
+          bsonType: "object",
+          required: ["klient_id", "pracownik_id", "produkty", "status"],
+          properties: {
+            _id: {
+              bsonType: "objectId"
+            },
+            klient_id: {
+              bsonType: "objectId",
+              description: "ID klienta - pole wymagane"
+            },
+            pracownik_id: {
+              bsonType: "objectId",
+              description: "ID pracownika - pole wymagane"
+            },
+            produkty: {
+              bsonType: "array",
+              minItems: 1,
+              items: {
+                bsonType: "object",
+                required: ["produkt_id", "typ", "data_start"],
+                properties: {
+                  produkt_id: {
+                    bsonType: "objectId",
+                    description: "ID produktu - pole wymagane"
+                  },
+                  typ: {
+                    bsonType: "string",
+                    enum: ["wypozyczenie", "rezerwacja"],
+                    description: "Typ zamówienia - pole wymagane"
+                  },
+                  data_start: {
+                    bsonType: "date",
+                    description: "Data rozpoczęcia - pole wymagane"
+                  },
+                  data_koniec: {
+                    bsonType: "date",
+                    description: "Data zakończenia "
+                  }
+                }
+              }
+            },
+            status: {
+              bsonType: "string",
+              enum: ["aktywny", "zakończony", "anulowany"],
+              description: "Status zamówienia - pole wymagane"
+            }
+          }
+        }
       }
-    ],
-    "status": "aktywny"
-  }
+    });
   ```
 
 * `oceny`: zawiera oceny wystawione przez klientów dla produktów
 
   ```json
-  {
-    "_id": ObjectId(),
-    "klient_id": ObjectId(),
-    "produkt_id": ObjectId(),
-    "ocena": 5,
-    "komentarz": "Świetny film!"
-  }
+
+    db.createCollection("oceny", {
+      validator: {
+        $jsonSchema: {
+          bsonType: "object",
+          required: ["klient_id", "produkt_id", "ocena"],
+          properties: {
+            _id: {
+              bsonType: "objectId"
+            },
+            klient_id: {
+              bsonType: "objectId",
+              description: "ID klienta - pole wymagane"
+            },
+            produkt_id: {
+              bsonType: "objectId",
+              description: "ID produktu - pole wymagane"
+            },
+            ocena: {
+              bsonType: "int",
+              minimum: 1,
+              maximum: 5,
+              description: "Ocena w skali 1-5 - pole wymagane"
+            },
+            komentarz: {
+              bsonType: "string",
+              description: "Komentarz do oceny"
+            }
+          }
+        }
+      }
+    });
   ```
 
 #### Zalety i wady
 
 **Zalety:** przejrzystość, łatwa rozbudowa, dobra wydajność przy dużych zbiorach.
 
-**Wady:** konieczność użycia agregacji lub joinów (\$lookup), większa liczba zapytań.
+**Wady:** konieczność użycia agregacji lub joinów, większa liczba zapytań.
 
 ---
 
@@ -742,34 +911,110 @@ Dane o zamówieniach i ocenach przechowywane są bezpośrednio w dokumencie klie
 * `klienci`:
 
 ```json
-{
-	"_id": ObjectId(),
-	"imie": "Anna",
-	"nazwisko": "Nowak",
-	"email": "anna.nowak@example.com",
-	"telefon": "+48 501 234 567",
-	"ranga": "premium",
-	"adres": {
-		"ulica": "Lipowa 12",
-		"miasto": "Warszawa",
-		"kod_pocztowy": "00-123"
-	},
-	"zamowienia": [
-	  {
-		"produkt_id": ObjectId("665000000000000000000001"),
-		"typ": "wypozyczenie",
-		"data_start": ISODate("2025-05-01T00:00:00Z"),
-		"data_koniec": ISODate("2025-05-10T00:00:00Z")
-	  }
-	],
-	"oceny": [
-	  {
-		"produkt_id": ObjectId("665000000000000000000001"),
-		"ocena": 5,
-		"komentarz": "Super!"
-	  }
-	]
- }
+    db.createCollection("klienci_nested", {
+      validator: {
+        $jsonSchema: {
+          bsonType: "object",
+          required: ["imie", "nazwisko", "email", "telefon", "ranga"],
+          properties: {
+            _id: {
+              bsonType: "objectId"
+            },
+            imie: {
+              bsonType: "string",
+              description: "Imię klienta - pole wymagane"
+            },
+            nazwisko: {
+              bsonType: "string", 
+              description: "Nazwisko klienta - pole wymagane"
+            },
+            email: {
+              bsonType: "string",
+              pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+              description: "Email klienta w poprawnym formacie - pole wymagane"
+            },
+            telefon: {
+              bsonType: "string",
+              pattern: "^\\+[0-9]{2}\\s[0-9]{3}\\s[0-9]{3}\\s[0-9]{3}$",
+              description: "Numer telefonu w formacie +XX XXX XXX XXX - pole wymagane"
+            },
+            ranga: {
+              bsonType: "string",
+              enum: ["standard", "premium", "vip"],
+              description: "Ranga klienta - pole wymagane"
+            },
+            adres: {
+              bsonType: "object",
+              required: ["ulica", "miasto", "kod_pocztowy"],
+              properties: {
+                ulica: {
+                  bsonType: "string",
+                  description: "Ulica i numer budynku"
+                },
+                miasto: {
+                  bsonType: "string",
+                  description: "Miasto"
+                },
+                kod_pocztowy: {
+                  bsonType: "string",
+                  pattern: "^[0-9]{2}-[0-9]{3}$",
+                  description: "Kod pocztowy w formacie XX-XXX"
+                }
+              }
+            },
+            zamowienia: {
+              bsonType: "array",
+              items: {
+                bsonType: "object",
+                required: ["produkt_id", "typ", "data_start", "data_koniec"],
+                properties: {
+                  produkt_id: {
+                    bsonType: "objectId",
+                    description: "ID produktu - pole wymagane"
+                  },
+                  typ: {
+                    bsonType: "string",
+                    enum: ["wypozyczenie", "rezerwacja"],
+                    description: "Typ zamówienia - pole wymagane"
+                  },
+                  data_start: {
+                    bsonType: "date",
+                    description: "Data rozpoczęcia - pole wymagane"
+                  },
+                  data_koniec: {
+                    bsonType: "date",
+                    description: "Data zakończenia - pole wymagane"
+                  }
+                }
+              }
+            },
+            oceny: {
+              bsonType: "array",
+              items: {
+                bsonType: "object",
+                required: ["produkt_id", "ocena"],
+                properties: {
+                  produkt_id: {
+                    bsonType: "objectId",
+                    description: "ID produktu - pole wymagane"
+                  },
+                  ocena: {
+                    bsonType: "int",
+                    minimum: 1,
+                    maximum: 5,
+                    description: "Ocena w skali 1-5 - pole wymagane"
+                  },
+                  komentarz: {
+                    bsonType: "string",
+                    description: "Komentarz do oceny"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
 ```
 
 * `produkty`, `pracownicy`: jak w wariancie 1
@@ -791,17 +1036,84 @@ Wszystkie akcje w systemie reprezentowane są przez dokumenty w jednej kolekcji 
 * `dzialania`:
 
   ```json
-  {
-    "_id": ObjectId(),
-    "typ": "rezerwacja",
-    "klient_id": ObjectId(),
-    "produkt_id": ObjectId(),
-    "data": ISODate(),
-    "szczegoly": {
-      "data_koniec": ISODate(),
-      "pracownik_id": ObjectId()
-    }
-  }
+    db.createCollection("dzialania", {
+      validator: {
+        $jsonSchema: {
+          bsonType: "object",
+          required: ["typ_zdarzenia", "data_zdarzenia", "obiekt_id"],
+          properties: {
+            _id: {
+              bsonType: "objectId"
+            },
+            typ_zdarzenia: {
+              bsonType: "string",
+              enum: ["wypozyczenie", "rezerwacja", "zwrot", "ocena", "rejestracja", "anulowanie", "zmiana_statusu"],
+              description: "Typ zdarzenia w systemie - pole wymagane"
+            },
+            data_zdarzenia: {
+              bsonType: "date",
+              description: "Data i czas zdarzenia - pole wymagane"
+            },
+            obiekt_id: {
+              bsonType: "objectId",
+              description: "ID głównego obiektu, którego dotyczy zdarzenie - pole wymagane"
+            },
+            klient_id: {
+              bsonType: "objectId",
+              description: "ID klienta, który wykonał akcję"
+            },
+            pracownik_id: {
+              bsonType: "objectId",
+              description: "ID pracownika obsługującego zdarzenie"
+            },
+            produkt_id: {
+              bsonType: "objectId",
+              description: "ID produktu, którego dotyczy zdarzenie"
+            },
+            dane_zdarzenia: {
+              bsonType: "object",
+              properties: {
+                ocena: {
+                  bsonType: "int",
+                  minimum: 1,
+                  maximum: 5,
+                  description: "Ocena przyznana produktowi (1-5)"
+                },
+                komentarz: {
+                  bsonType: "string",
+                  description: "Komentarz dodany do oceny"
+                },
+                nowy_status: {
+                  bsonType: "string",
+                  enum: ["aktywny", "zakończony", "anulowany"],
+                  description: "Nowy status zamówienia po zmianie"
+                },
+                data_start: {
+                  bsonType: "date",
+                  description: "Data rozpoczęcia wypożyczenia/rezerwacji"
+                },
+                data_koniec: {
+                  bsonType: "date",
+                  description: "Data zakończenia wypożyczenia/rezerwacji"
+                },
+                dane_klienta: {
+                  bsonType: "object",
+                  description: "Dane klienta przy rejestracji lub aktualizacji"
+                },
+                dane_pracownika: {
+                  bsonType: "object",
+                  description: "Dane pracownika przy rejestracji lub aktualizacji"
+                },
+                dane_produktu: {
+                  bsonType: "object",
+                  description: "Dane produktu podczas dodawania lub aktualizacji"
+                }
+              }
+            }
+          }
+        }
+      }
+    });
   ```
 
 * `produkty`, `klienci`, `pracownicy`: jak w wariancie 1
@@ -820,29 +1132,192 @@ Połączenie podejścia referencyjnego i zagnieżdżonego.
 
 #### Struktura kolekcji:
 
-* `produkty`: produkt zawiera ocenę w zagnieżdżonej tablicy
+* `klienci`: jak w wariancie 1, ale zagnieżdżone zamówienia z nazwa produktu i oceny bez komentarza
 
-  ```json
-  {
-    "_id": ObjectId(),
-    "tytul": "Matrix",
-    "oceny": [
-      {
-        "klient_id": ObjectId(),
-        "ocena": 5,
-        "komentarz": "Klasyk!"
+```json
+    db.createCollection("klienci_hybrid", {
+      validator: {
+        $jsonSchema: {
+          bsonType: "object",
+          required: ["imie", "nazwisko", "email", "telefon", "ranga"],
+          properties: {
+            _id: {
+              bsonType: "objectId"
+            },
+            imie: {
+              bsonType: "string",
+              description: "Imię klienta - pole wymagane"
+            },
+            nazwisko: {
+              bsonType: "string", 
+              description: "Nazwisko klienta - pole wymagane"
+            },
+            email: {
+              bsonType: "string",
+              pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+              description: "Email klienta w poprawnym formacie - pole wymagane"
+            },
+            telefon: {
+              bsonType: "string",
+              pattern: "^\\+[0-9]{2}\\s[0-9]{3}\\s[0-9]{3}\\s[0-9]{3}$",
+              description: "Numer telefonu w formacie +XX XXX XXX XXX - pole wymagane"
+            },
+            ranga: {
+              bsonType: "string",
+              enum: ["standard", "premium", "vip"],
+              description: "Ranga klienta - pole wymagane"
+            },
+            adres: {
+              bsonType: "object",
+              required: ["ulica", "miasto", "kod_pocztowy"],
+              properties: {
+                ulica: {
+                  bsonType: "string",
+                  description: "Ulica i numer budynku"
+                },
+                miasto: {
+                  bsonType: "string",
+                  description: "Miasto"
+                },
+                kod_pocztowy: {
+                  bsonType: "string",
+                  pattern: "^[0-9]{2}-[0-9]{3}$",
+                  description: "Kod pocztowy w formacie XX-XXX"
+                }
+              }
+            },
+            zamowienia: {
+              bsonType: "array",
+              items: {
+                bsonType: "object",
+                required: ["produkt_id", "typ", "data_start", "data_koniec"],
+                properties: {
+                  produkt_id: {
+                    bsonType: "objectId",
+                    description: "ID produktu - pole wymagane"
+                  },
+                  product_name: {
+                    bsonType: "string",
+                    description: "Nazwa produktu (czesto uzywana)"
+                  },
+                  typ: {
+                    bsonType: "string",
+                    enum: ["wypozyczenie", "rezerwacja"],
+                    description: "Typ zamówienia - pole wymagane"
+                  },
+                  data_start: {
+                    bsonType: "date",
+                    description: "Data rozpoczęcia - pole wymagane"
+                  },
+                  data_koniec: {
+                    bsonType: "date",
+                    description: "Data zakończenia - pole wymagane"
+                  }
+                }
+              }
+            },
+            oceny: {
+              bsonType: "array",
+              items: {
+                bsonType: "object",
+                required: ["ocena_id", "produkt_id", "ocena"],
+                properties: {
+                  ocena_id: {
+                    bsonType: "objectId",
+                    description: "ID oceny - pole wymagane"
+                  },
+                  produkt_id: {
+                    bsonType: "objectId",
+                    description: "ID produktu - pole wymagane"
+                  },
+                  ocena: {
+                    bsonType: "int",
+                    minimum: 1,
+                    maximum: 5,
+                    description: "Ocena w skali 1-5 - pole wymagane"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
-    ]
-  }
-  ```
+    });
 
-* `zamowienia`, `klienci`, `pracownicy`: jak w wariancie 1
+```
+
+* `produkty, oceny, pracownicy` - jak w wariancie 1
+
 
 #### Zalety i wady
 
 **Zalety:** zoptymalizowane pod kątem szybkości i skalowalności.
 
-**Wady:** konieczność synchronizacji danych między kolekcjami.
+**Wady:** konieczność synchronizacji danych między kolekcjami, stworzenie funkcji aktualizujących dane.
+
+---
+
+## Dodanie przykładowych danych
+
+---
+
+### Wariant 1: Kolekcje rozdzielone, połączone referencjami
+
+```js
+
+db.klienci.insertOne({
+    "imie": "Jan",
+    "nazwisko": "Kowalski",
+    "email": "jan.kowalski@gmail.com",
+    "telefon": "+48 123 456 789",
+    "ranga": "standard",
+    "adres": {
+        "ulica": "Kwiatowa 5",
+        "miasto": "Warszawa",
+        "kod_pocztowy": "00-001"
+    }
+})
+
+db.pracownicy.insertOne({
+    "imie": "Adam",
+    "nazwisko": "Nowak",
+    "email": "adam@gmail.com",
+    "telefon": "+48 987 654 321",
+    "ranga": "administrator"
+})
+
+db.produkty.insertOne({
+    "tytul": "Film A",
+    "typ": "film",
+    "kategoria": "komedia",
+    "ilosc_w_magazynie": 10,
+    "ilosc_zarezerwowana": 0,
+    "ilosc_wypozyczona": 0
+})
+
+let klient = db.klienci.findOne({"email": "jan.kowalski@gmail.com"})
+let pracownik = db.pracownicy.findOne({"email": "adam@gmail.com"})
+let produkt = db.produkty.findOne({"tytul": "Film A"})
+
+db.zamowienia.insertOne({
+    "klient_id": klient._id,
+    "pracownik_id": pracownik._id,
+    "produkty": [
+        {
+            "produkt_id": produkt._id,
+            "typ": "wypozyczenie",
+            "data_start": new Date()
+        }
+    ],
+    "status": "aktywny"
+
+```
+
+
+
+
+# TODO - nizej do redakcji
+
 
 ---
 

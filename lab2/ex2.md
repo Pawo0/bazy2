@@ -1260,12 +1260,14 @@ Połączenie podejścia referencyjnego i zagnieżdżonego.
 ## Dodanie przykładowych danych
 
 ---
-
 ### Wariant 1: Kolekcje rozdzielone, połączone referencjami
 
 ```js
 
-db.klienci.insertOne({
+
+// dodawanie danych do kolekcji
+db.klienci.insertMany(
+[{
     "imie": "Jan",
     "nazwisko": "Kowalski",
     "email": "jan.kowalski@gmail.com",
@@ -1276,24 +1278,68 @@ db.klienci.insertOne({
         "miasto": "Warszawa",
         "kod_pocztowy": "00-001"
     }
-})
+},
+{
+    "imie": "Anna",
+    "nazwisko": "Nowak",
+    "email": "ann@gmail.com",
+    "telefon": "+48 789 456 123",
+    "ranga": "premium",
+    "adres": {
+        "ulica": "Długa 15",
+        "miasto": "Kraków",
+        "kod_pocztowy": "30-001"
+    }
+}
+]
+)
 
-db.pracownicy.insertOne({
+db.pracownicy.insertMany(
+[{
     "imie": "Adam",
     "nazwisko": "Nowak",
     "email": "adam@gmail.com",
     "telefon": "+48 987 654 321",
     "ranga": "administrator"
-})
+},
+    {
+      "imie": "Marta",
+      "nazwisko": "Kowalska",
+      "email": "marta.kowalska@wypozyczalnia.pl",
+      "telefon": "+48 987 654 321",
+      "ranga": "pracownik"
+    }
+]
+)
 
-db.produkty.insertOne({
-    "tytul": "Film A",
-    "typ": "film",
-    "kategoria": "komedia",
-    "ilosc_w_magazynie": 10,
-    "ilosc_zarezerwowana": 0,
-    "ilosc_wypozyczona": 0
-})
+db.produkty.insertMany(
+[
+ {
+      tytul: "Inception",
+      typ: "film",
+      kategoria: "sci-fi",
+      ilosc_w_magazynie: 8,
+      ilosc_zarezerwowana: 1,
+      ilosc_wypozyczona: 2
+    },
+    {
+      tytul: "The Dark Side of the Moon",
+      typ: "muzyka",
+      kategoria: "rock",
+      ilosc_w_magazynie: 5,
+      ilosc_zarezerwowana: 0,
+      ilosc_wypozyczona: 3
+    },
+    {
+      tytul: "Harry Potter i Kamień Filozoficzny",
+      typ: "audiobook",
+      kategoria: "fantasy",
+      ilosc_w_magazynie: 3,
+      ilosc_zarezerwowana: 1,
+      ilosc_wypozyczona: 1
+    }
+]
+)
 
 let klient = db.klienci.findOne({"email": "jan.kowalski@gmail.com"})
 let pracownik = db.pracownicy.findOne({"email": "adam@gmail.com"})
@@ -1310,9 +1356,417 @@ db.zamowienia.insertOne({
         }
     ],
     "status": "aktywny"
+})
+```
+
+### Wariant 2: Dokumenty zagnieżdżone
+
+* `produkty`, `pracownicy`: jak w wariancie 1
+
+```js
+
+// dane do zagniezdzonej kolekcji
+let produkty = db.produkty.find().toArray();
+let produktId = produkty.map(p => p._id);
+print(produktId);
+
+db.klienci_nested.insertMany([
+  {
+    "imie": "Jan",
+    "nazwisko": "Kowalski",
+    "email": "jan.kowalski@gmail.com",
+    "telefon": "+48 123 456 789",
+    "ranga": "standard",
+    "adres": {
+      "ulica": "Kwiatowa 5",
+      "miasto": "Warszawa",
+      "kod_pocztowy": "00-001"
+    },
+    "zamowienia": [
+      {
+        "produkt_id": produktId[0],
+        "typ": "wypozyczenie",
+        "data_start": new Date(),
+        "data_koniec": new Date(new Date().getTime() + 7*24*60*60*1000)
+      }
+    ],
+    "oceny": [
+      {
+        "produkt_id": produktId[0],
+        "ocena": 5,
+        "komentarz": "Świetny film, polecam!"
+      }
+    ]
+  },
+  {
+    "imie": "Anna",
+    "nazwisko": "Nowak",
+    "email": "anna.nowak@gmail.com",
+    "telefon": "+48 789 456 123",
+    "ranga": "premium",
+    "adres": {
+      "ulica": "Długa 15",
+      "miasto": "Kraków",
+      "kod_pocztowy": "30-001"
+    },
+    "zamowienia": [
+      {
+        "produkt_id": produktId[1],
+        "typ": "wypozyczenie",
+        "data_start":  new Date(),
+        "data_koniec":  new Date(new Date().getTime() + 7*24*60*60*1000)
+      },
+      {
+        "produkt_id": produktId[2],
+        "typ": "rezerwacja",
+        "data_start":  new Date(),
+        "data_koniec":  new Date(new Date().getTime() + 7*24*60*60*1000)
+      }
+    ],
+    "oceny": [
+      {
+        "produkt_id": produktId[1],
+        "ocena": 4,
+        "komentarz": "Dobry album, ale mogłoby być więcej utworów"
+      }
+    ]
+  },
+  {
+    "imie": "Piotr",
+    "nazwisko": "Wiśniewski",
+    "email": "piotr.wisniewski@gmail.com",
+    "telefon": "+48 555 666 777",
+    "ranga": "vip",
+    "adres": {
+      "ulica": "Szeroka 8",
+      "miasto": "Gdańsk",
+      "kod_pocztowy": "80-001"
+    },
+    "zamowienia": [
+      {
+        "produkt_id": produktId[0],
+        "typ": "wypozyczenie",
+        "data_start": new Date(),
+        "data_koniec":  new Date(new Date().getTime() + 7*24*60*60*1000)
+      },
+      {
+        "produkt_id": produktId[1],
+        "typ": "wypozyczenie",
+        "data_start": new Date(),
+        "data_koniec": new Date(new Date().getTime() + 7*24*60*60*1000)
+      },
+      {
+        "produkt_id": produktId[2],
+        "typ": "wypozyczenie",
+        "data_start": new Date(),
+        "data_koniec":  new Date(new Date().getTime() + 7*24*60*60*1000)
+      }
+    ],
+    "oceny": [
+      {
+        "produkt_id": produktId[0],
+        "ocena": 3,
+        "komentarz": "Film przeciętny, ale daje się obejrzeć"
+      },
+      {
+        "produkt_id": produktId[1],
+        "ocena": 5,
+        "komentarz": "Fantastyczny album, słucham codziennie!"
+      },
+      {
+        "produkt_id": produktId[2],
+        "ocena": 4,
+        "komentarz": "Ciekawa książka, wciągająca fabuła"
+      }
+    ]
+  }
+]);
+```
+
+### Wariant 3: Kolekcja działań (event sourcing)
+* `produkty`, `klienci`, `pracownicy`: jak w wariancie 1
+
+```js
+
+
+// Pobierz istniejące dane z innych kolekcji
+let klienci = db.klienci.find().toArray();
+let pracownicy = db.pracownicy.find().toArray();
+let produkty = db.produkty.find().toArray();
+
+// Sprawdź czy mamy wszystkie potrzebne dane
+if (klienci.length === 0 || pracownicy.length === 0 || produkty.length === 0) {
+  print("Brak wymaganych danych w kolekcjach klienci, pracownicy lub produkty!");
+} else {
+  // Przykładowe zdarzenia
+  let dzialania = [
+    // Rejestracja klienta
+    {
+      typ_zdarzenia: "rejestracja",
+      data_zdarzenia: new Date(new Date().getTime() - 30*24*60*60*1000), // 30 dni temu
+      obiekt_id: klienci[0]._id,
+      klient_id: klienci[0]._id,
+      dane_zdarzenia: {
+        dane_klienta: {
+          imie: klienci[0].imie,
+          nazwisko: klienci[0].nazwisko,
+          email: klienci[0].email,
+          telefon: klienci[0].telefon,
+          ranga: klienci[0].ranga
+        }
+      }
+    },
+
+    // Wypożyczenie filmu
+    {
+      typ_zdarzenia: "wypozyczenie",
+      data_zdarzenia: new Date(new Date().getTime() - 15*24*60*60*1000), // 15 dni temu
+      obiekt_id: produkty[0]._id,
+      klient_id: klienci[0]._id,
+      pracownik_id: pracownicy[0]._id,
+      produkt_id: produkty[0]._id,
+      dane_zdarzenia: {
+        data_start: new Date(new Date().getTime() - 15*24*60*60*1000),
+        data_koniec: new Date(new Date().getTime() - 8*24*60*60*1000)
+      }
+    },
+
+    // Zwrot filmu
+    {
+      typ_zdarzenia: "zwrot",
+      data_zdarzenia: new Date(new Date().getTime() - 8*24*60*60*1000), // 8 dni temu
+      obiekt_id: produkty[0]._id,
+      klient_id: klienci[0]._id,
+      pracownik_id: pracownicy[0]._id,
+      produkt_id: produkty[0]._id,
+      dane_zdarzenia: {}
+    },
+
+    // Ocena filmu
+    {
+      typ_zdarzenia: "ocena",
+      data_zdarzenia: new Date(new Date().getTime() - 7*24*60*60*1000), // 7 dni temu
+      obiekt_id: produkty[0]._id,
+      klient_id: klienci[0]._id,
+      produkt_id: produkty[0]._id,
+      dane_zdarzenia: {
+        ocena: 5,
+        komentarz: "Świetny film, bardzo polecam!"
+      }
+    },
+
+    // Rezerwacja audiobooka
+    {
+      typ_zdarzenia: "rezerwacja",
+      data_zdarzenia: new Date(new Date().getTime() - 3*24*60*60*1000), // 3 dni temu
+      obiekt_id: produkty[2]._id,
+      klient_id: klienci[0]._id,
+      pracownik_id: pracownicy[0]._id,
+      produkt_id: produkty[2]._id,
+      dane_zdarzenia: {
+        data_start: new Date(new Date().getTime() - 3*24*60*60*1000),
+        data_koniec: new Date(new Date().getTime() + 7*24*60*60*1000)
+      }
+    },
+
+    // Anulowanie rezerwacji
+    {
+      typ_zdarzenia: "anulowanie",
+      data_zdarzenia: new Date(new Date().getTime() - 1*24*60*60*1000), // wczoraj
+      obiekt_id: produkty[2]._id,
+      klient_id: klienci[0]._id,
+      pracownik_id: pracownicy[0]._id,
+      produkt_id: produkty[2]._id,
+      dane_zdarzenia: {}
+    },
+
+    // Wypożyczenie muzyki
+    {
+      typ_zdarzenia: "wypozyczenie",
+      data_zdarzenia: new Date(), // dzisiaj
+      obiekt_id: produkty[1]._id,
+      klient_id: klienci[0]._id,
+      pracownik_id: pracownicy[0]._id,
+      produkt_id: produkty[1]._id,
+      dane_zdarzenia: {
+        data_start: new Date(),
+        data_koniec: new Date(new Date().getTime() + 14*24*60*60*1000)
+      }
+    },
+
+    // Zmiana statusu wypożyczenia
+    {
+      typ_zdarzenia: "zmiana_statusu",
+      data_zdarzenia: new Date(), // dzisiaj
+      obiekt_id: produkty[1]._id,
+      klient_id: klienci[0]._id,
+      pracownik_id: pracownicy[0]._id,
+      produkt_id: produkty[1]._id,
+      dane_zdarzenia: {
+        nowy_status: "aktywny"
+      }
+    }
+  ];
+
+  // Wstaw dane do kolekcji
+  db.dzialania.insertMany(dzialania);
+
+  print("Dodano " + dzialania.length + " przykładowych zdarzeń do kolekcji dzialania.");
+}
 
 ```
 
+### Wariant 4: Hybrydowy
+
+* `produkty`, `pracownicy`: jak w wariancie 1
+
+```js
+
+
+let produkty = db.produkty.find().toArray();
+let produktyIds = produkty.map(p => p._id);
+
+let pracownicy = db.pracownicy.find().toArray();
+let pracownicyIds = pracownicy.map(p => p._id);
+print(pracownicyIds);
+
+
+
+// Generujemy identyfikatory ocen
+const ocenaId1 = new ObjectId();
+const ocenaId2 = new ObjectId();
+const ocenaId3 = new ObjectId();
+
+// Dodajemy klientów w wariancie hybrydowym
+db.klienci_hybrid.insertMany([
+  {
+    imie: "Jan",
+    nazwisko: "Kowalski",
+    email: "jan.kowalski@gmail.com",
+    telefon: "+48 111 222 333",
+    ranga: "standard",
+    adres: {
+      ulica: "Kwiatowa 5",
+      miasto: "Warszawa",
+      kod_pocztowy: "00-001"
+    },
+    zamowienia: [
+      {
+        produkt_id: produktyIds[0],
+        product_name: "Inception",
+        typ: "wypozyczenie",
+        data_start: new Date(new Date().getTime() - 10*24*60*60*1000), // 10 dni temu
+        data_koniec: new Date(new Date().getTime() + 4*24*60*60*1000) // za 4 dni
+      }
+    ],
+    oceny: [
+      {
+        ocena_id: ocenaId1,
+        produkt_id: produktyIds[0],
+        ocena: 5
+      }
+    ]
+  },
+  {
+    imie: "Anna",
+    nazwisko: "Nowak",
+    email: "anna.nowak@gmail.com",
+    telefon: "+48 222 333 444",
+    ranga: "premium",
+    adres: {
+      ulica: "Słoneczna 10",
+      miasto: "Kraków",
+      kod_pocztowy: "30-001"
+    },
+    zamowienia: [
+      {
+        produkt_id: produktyIds[1],
+        product_name: "The Dark Side of the Moon",
+        typ: "wypozyczenie",
+        data_start: new Date(new Date().getTime() - 5*24*60*60*1000), // 5 dni temu
+        data_koniec: new Date(new Date().getTime() + 9*24*60*60*1000) // za 9 dni
+      },
+      {
+        produkt_id: produktyIds[2],
+        product_name: "Harry Potter i Kamień Filozoficzny",
+        typ: "rezerwacja",
+        data_start: new Date(new Date().getTime() + 1*24*60*60*1000), // za 1 dzień
+        data_koniec: new Date(new Date().getTime() + 15*24*60*60*1000) // za 15 dni
+      }
+    ],
+    oceny: [
+      {
+        ocena_id: ocenaId2,
+        produkt_id: produktyIds[1],
+        ocena: 4
+      }
+    ]
+  },
+  {
+    imie: "Piotr",
+    nazwisko: "Wiśniewski",
+    email: "piotr.wisniewski@gmail.com",
+    telefon: "+48 333 444 555",
+    ranga: "vip",
+    adres: {
+      ulica: "Morska 15",
+      miasto: "Gdańsk",
+      kod_pocztowy: "80-001"
+    },
+    zamowienia: [
+      {
+        produkt_id: produktyIds[0],
+        product_name: "Inception",
+        typ: "wypozyczenie",
+        data_start: new Date(new Date().getTime() - 20*24*60*60*1000), // 20 dni temu
+        data_koniec: new Date(new Date().getTime() - 6*24*60*60*1000) // 6 dni temu (zakończone)
+      },
+      {
+        produkt_id: produktyIds[2],
+        product_name: "Harry Potter i Kamień Filozoficzny",
+        typ: "wypozyczenie",
+        data_start: new Date(new Date().getTime() - 3*24*60*60*1000), // 3 dni temu
+        data_koniec: new Date(new Date().getTime() + 11*24*60*60*1000) // za 11 dni
+      }
+    ],
+    oceny: [
+      {
+        ocena_id: ocenaId3,
+        produkt_id: produktyIds[0],
+        ocena: 5
+      }
+    ]
+  }
+]);
+
+// Dodajemy pełne oceny w kolekcji oceny
+db.oceny.insertMany([
+  {
+    _id: ocenaId1,
+    klient_id: db.klienci_hybrid.findOne({email: "jan.kowalski@gmail.com"})._id,
+    produkt_id: produktyIds[0],
+    ocena: 5,
+    komentarz: "Świetny film, głęboki i wciągający. Polecam!"
+  },
+  {
+    _id: ocenaId2,
+    klient_id: db.klienci_hybrid.findOne({email: "anna.nowak@gmail.com"})._id,
+    produkt_id: produktyIds[1],
+    ocena: 4,
+    komentarz: "Klasyczny album, który doskonale brzmi. Jedyne czego brakuje to trochę więcej dynamiki."
+  },
+  {
+    _id: ocenaId3,
+    klient_id: db.klienci_hybrid.findOne({email: "piotr.wisniewski@gmail.com"})._id,
+    produkt_id: produktyIds[0],
+    ocena: 5,
+    komentarz: "Jeden z najlepszych filmów Nolana. Polecam wszystkim miłośnikom dobrego kina."
+  }
+]);
+
+
+
+```
 
 
 

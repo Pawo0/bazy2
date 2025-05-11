@@ -1316,7 +1316,6 @@ db.zamowienia.insertOne({
 
 
 
-# TODO - nizej do redakcji
 
 
 ---
@@ -1331,39 +1330,85 @@ Dane przechowywane w osobnych kolekcjach: `klienci`, `pracownicy`, `produkty`, `
 
 ### Przykładowe zapytania:
 
-1. **Wyszukanie zamówień danego klienta z produktami:**
+1. **Znalezienie wszystkich aktywnych wypożyczeń filmu o tytule "Film A"**
 
 ```js
 db.zamowienia.aggregate([
-  { $match: { klient_id: ObjectId("665...002") } },
+  {
+    $match: {
+      status: "aktywny"
+    }
+  },
+  {
+    $unwind: "$produkty"
+  },
+  {
+    $match: {
+      "produkty.typ": "wypozyczenie"
+    }
+  },
   {
     $lookup: {
       from: "produkty",
       localField: "produkty.produkt_id",
       foreignField: "_id",
-      as: "szczegoly_produktow"
+      as: "produkt_info"
+    }
+  },
+  {
+    $unwind: "$produkt_info"
+  },
+  {
+    $match: {
+      "produkt_info.tytul": "Film A"
+    }
+  },
+  {
+    $lookup: {
+      from: "klienci",
+      localField: "klient_id",
+      foreignField: "_id",
+      as: "klient_info"
+    }
+  },
+  {
+    $project: {
+      _id: 1,
+      "klient_info.imie": 1,
+      "klient_info.nazwisko": 1,
+      "produkt_info.tytul": 1,
+      "produkty.data_start": 1
     }
   }
 ])
 ```
 
-2. **Średnia ocena danego produktu:**
+Zalety w tym przypadku:  
+Możliwość dokładnego filtrowania według wielu parametrów
+Łatwe łączenie danych z różnych kolekcji
+Aktualizacja danych klienta lub produktu nie wymaga modyfikacji dokumentów zamówień
+
+Wady:
+Złożone zapytanie z wieloma etapami agregacji
+Większa liczba operacji odczytu z bazy
+
+2. **Aktualizacja stanu magazynowego produktu po wypożyczeniu:**
 
 ```js
-db.oceny.aggregate([
-  { $match: { produkt_id: ObjectId("665...001") } },
-  { $group: { _id: "$produkt_id", srednia: { $avg: "$ocena" } } }
-])
+db.produkty.updateOne(
+  { _id: ObjectId("id_produktu") },
+  {
+    $inc: { 
+      ilosc_w_magazynie: -1,
+      ilosc_wypozyczona: 1
+    }
+  }
+)
 ```
+ 
+Prosta operacja aktualizacji
+Spójne dane o stanie magazynowym w jednym miejscu
 
-3. **Lista premium klientów z Warszawy:**
-
-```js
-db.klienci.find({
-  ranga: "premium",
-  "adres.miasto": "Warszawa"
-})
-```
 
 ### Wnioski:
 
@@ -1383,37 +1428,80 @@ Dane powiązane (zamówienia, oceny) są częścią dokumentu klienta.
 
 ### Przykładowe zapytania:
 
-1. **Wszystkie zamówienia klienta:**
+1. **Znalezienie wszystkich ocen klienta dla komediowych filmów:**
 
 ```js
-db.klienci.find(
-  { _id: ObjectId("665...002") },
-  { zamowienia: 1 }
-)
+db.klienci_nested.aggregate([
+  {
+    $match: {
+      "email": "jan.kowalski@gmail.com"
+    }
+  },
+  {
+    $unwind: "$oceny"
+  },
+  {
+    $lookup: {
+      from: "produkty",
+      localField: "oceny.produkt_id",
+      foreignField: "_id",
+      as: "produkt_info"
+    }
+  },
+  {
+    $unwind: "$produkt_info"
+  },
+  {
+    $match: {
+      "produkt_info.typ": "film",
+      "produkt_info.kategoria": "komedia"
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      imie: 1,
+      nazwisko: 1,
+      "produkt_info.tytul": 1,
+      "oceny.ocena": 1,
+      "oceny.komentarz": 1
+    }
+  }
+])
 ```
 
-2. **Dodanie nowej oceny klienta:**
+Zalety:  
+Wszystkie dane klienta w jednym dokumencie
+Mniej operacji łączenia kolekcji
+
+Wady:
+Nadal wymaga łączenia z kolekcją produktów
+Problem z dużymi dokumentami klientów przy wielu zamówieniach/ocenach
+
+2. ** Dodanie nowego zamówienia dla klienta:**
 
 ```js
-db.klienci.updateOne(
-  { _id: ObjectId("665...002") },
+db.klienci_nested.updateOne(
+  { email: "jan.kowalski@gmail.com" },
   {
     $push: {
-      oceny: {
-        produkt_id: ObjectId("665...001"),
-        ocena: 5,
-        komentarz: "Rewelacyjny film!"
+      zamowienia: {
+        produkt_id: ObjectId("id_produktu"),
+        typ: "wypozyczenie",
+        data_start: new Date(),
+        data_koniec: new Date(new Date().setDate(new Date().getDate() + 7))
       }
     }
   }
 )
 ```
+Zalety:  
+Wszystkie zamówienia klienta od razu zaktualizowane w jednym dokumencie
+Szybki dostęp do kompletnej historii klienta
 
-3. **Średnia ocen (trudniejsze):**
-
-```js
-// Potrzebna transformacja w kodzie aplikacji po stronie klienta
-```
+Wady:  
+Konieczność osobnej aktualizacji stanu magazynowego
+Ryzyko przekroczenia maksymalnego rozmiaru dokumentu BSON (16MB)
 
 ### Wnioski:
 
@@ -1433,29 +1521,85 @@ Wszystkie operacje (rezerwacje, wypożyczenia, oceny) są zapisane jako osobne z
 
 ### Przykładowe zapytania:
 
-1. **Zdarzenia klienta:**
+1. **Znalezienie wszystkich operacji wypożyczenia dla określonego produktu:**
 
 ```js
-db.dzialania.find({ klient_id: ObjectId("665...002") })
+db.dzialania.find(
+  {
+    typ_zdarzenia: "wypozyczenie",
+    produkt_id: ObjectId("id_produktu")
+  },
+  {
+    _id: 1,
+    data_zdarzenia: 1,
+    klient_id: 1,
+    pracownik_id: 1,
+    "dane_zdarzenia.data_start": 1,
+    "dane_zdarzenia.data_koniec": 1
+  }
+).sort({ data_zdarzenia: -1 })
 ```
 
-2. **Wszystkie rezerwacje dla danego produktu:**
+Zalety:  
+Pełna historia wszystkich operacji w systemie
+Łatwe śledzenie chronologii zdarzeń
+Możliwość rekonstrukcji stanu w dowolnym momencie
+
+Wady:
+Wymaga dodatkowych operacji, aby uzyskać aktualne dane encji
+Trudniejsza implementacja złożonych zapytań biznesowych
+
+2. **Analiza aktywności pracowników:**
 
 ```js
-db.dzialania.find({
-  produkt_id: ObjectId("665...001"),
-  typ: "rezerwacja"
-})
+db.dzialania.aggregate([
+  {
+    $match: {
+      pracownik_id: { $exists: true }
+    }
+  },
+  {
+    $group: {
+      _id: { 
+        pracownik_id: "$pracownik_id",
+        typ_zdarzenia: "$typ_zdarzenia"
+      },
+      liczba_operacji: { $sum: 1 }
+    }
+  },
+  {
+    $lookup: {
+      from: "pracownicy",
+      localField: "_id.pracownik_id",
+      foreignField: "_id",
+      as: "pracownik_info"
+    }
+  },
+  {
+    $unwind: "$pracownik_info"
+  },
+  {
+    $project: {
+      _id: 0,
+      "pracownik_info.imie": 1,
+      "pracownik_info.nazwisko": 1,
+      typ_zdarzenia: "$_id.typ_zdarzenia",
+      liczba_operacji: 1
+    }
+  },
+  {
+    $sort: { liczba_operacji: -1 }
+  }
+])
 ```
+
+Zalety:  
+Doskonałe do analityki i raportowania
+Wszystkie zdarzenia chronologicznie w jednym miejscu
+Łatwe tworzenie statystyk
+
 
 3. **Ilość wypożyczeń filmu w maju:**
-
-```js
-db.dzialania.countDocuments({
-  typ: "wypozyczenie",
-  data: { $gte: ISODate("2025-05-01"), $lt: ISODate("2025-06-01") }
-})
-```
 
 ### Wnioski:
 
@@ -1475,30 +1619,65 @@ Część danych zagnieżdżona (np. oceny w produktach), część jako referencj
 
 ### Przykładowe zapytania:
 
-1. **Oceny dla filmu bez dodatkowego `lookup`:**
+1. **Znajdowanie klientów z aktywnymi wypożyczeniami wybranego produktu**
 
 ```js
-db.produkty.find(
-  { _id: ObjectId("665...001") },
-  { oceny: 1 }
+db.klienci_hybrid.find(
+  {
+    "zamowienia": {
+      $elemMatch: {
+        "produkt_id": ObjectId("id_produktu"),
+        "typ": "wypozyczenie",
+        "data_koniec": { $gt: new Date() }
+      }
+    }
+  },
+  {
+    _id: 1,
+    imie: 1,
+    nazwisko: 1,
+    email: 1,
+    telefon: 1,
+    "zamowienia.$": 1
+  }
 )
 ```
 
-2. **Zamówienia klienta (referencja):**
+Zalety:  
+Szybkie wyszukiwanie po zagnieżdżonych atrybutach
+Brak konieczności łączenia kolekcji przy często używanych danych
+Zwracane są tylko pasujące elementy tablicy zamówień
+
+Wady:
+Duplikacja niektórych danych (np. nazwy produktów)
+Konieczność aktualizacji danych w kilku miejscach
+
+2. **ZWyszukiwanie klientów najczęściej oceniających produkty**
 
 ```js
-db.zamowienia.find({ klient_id: ObjectId("665...002") })
-```
-
-3. **Średnia ocena z zagnieżdżonych ocen:**
-
-```js
-db.produkty.aggregate([
-  { $match: { _id: ObjectId("665...001") } },
-  { $unwind: "$oceny" },
-  { $group: { _id: "$_id", srednia: { $avg: "$oceny.ocena" } } }
+db.klienci_hybrid.aggregate([
+  {
+    $project: {
+      _id: 1,
+      imie: 1,
+      nazwisko: 1,
+      liczba_ocen: { $size: { $ifNull: ["$oceny", []] } }
+    }
+  },
+  {
+    $sort: { liczba_ocen: -1 }
+  },
+  {
+    $limit: 10
+  }
 ])
 ```
+
+Zalety:
+Natychmiastowy dostęp do zagnieżdżonych danych
+Szybkie operacje bez potrzeby łączenia
+Większa czytelność zapytań
+
 
 ### Wnioski:
 

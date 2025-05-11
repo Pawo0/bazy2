@@ -1836,6 +1836,7 @@ db.zamowienia.aggregate([
   }
 ])
 ```
+![img.png](img.png)
 
 Zalety w tym przypadku:  
 Możliwość dokładnego filtrowania według wielu parametrów
@@ -1849,17 +1850,43 @@ Większa liczba operacji odczytu z bazy
 2. **Aktualizacja stanu magazynowego produktu po wypożyczeniu:**
 
 ```js
+// Pobierz identyfikatory potrzebnych obiektów
+let klientId = db.klienci.findOne({email: "jan.kowalski@gmail.com"})._id;
+let pracownikId = db.pracownicy.findOne({ranga: "administrator"})._id;
+let produktId = db.produkty.findOne({tytul: "Inception"})._id;
+
+db.zamowienia.insertOne({
+  klient_id: klientId,
+  pracownik_id: pracownikId,
+  data_zamowienia: new Date(),
+  status: "aktywny",
+  produkty: [
+    {
+      produkt_id: produktId,
+      typ: "wypozyczenie",
+      data_start: new Date(),
+      data_koniec: new Date(new Date().getTime() + 14*24*60*60*1000), // 14 dni od teraz
+      cena: 19.99,
+      zniżka: 0
+    }
+  ]
+});
+
+// Aktualizuj stan magazynowy produktu
 db.produkty.updateOne(
-  { _id: ObjectId("id_produktu") },
+  { _id: produktId },
   {
-    $inc: { 
+    $inc: {
       ilosc_w_magazynie: -1,
       ilosc_wypozyczona: 1
     }
   }
-)
+);
+
 ```
  
+![img_1.png](img_1.png)
+
 Prosta operacja aktualizacji
 Spójne dane o stanie magazynowym w jednym miejscu
 
@@ -1924,6 +1951,8 @@ db.klienci_nested.aggregate([
 ])
 ```
 
+![img_2.png](img_2.png)
+
 Zalety:  
 Wszystkie dane klienta w jednym dokumencie
 Mniej operacji łączenia kolekcji
@@ -1935,20 +1964,42 @@ Problem z dużymi dokumentami klientów przy wielu zamówieniach/ocenach
 2. ** Dodanie nowego zamówienia dla klienta:**
 
 ```js
-db.klienci_nested.updateOne(
-  { email: "jan.kowalski@gmail.com" },
-  {
-    $push: {
-      zamowienia: {
-        produkt_id: ObjectId("id_produktu"),
-        typ: "wypozyczenie",
-        data_start: new Date(),
-        data_koniec: new Date(new Date().setDate(new Date().getDate() + 7))
+// Pobierz identyfikator produktu, który chcemy wypożyczyć
+let produkt = db.produkty.findOne({tytul: "Album B"});
+
+if (!produkt) {
+  print("Nie znaleziono produktu ");
+} else {
+  // Zaktualizuj dokument klienta, dodając nowe zamówienie
+  db.klienci_nested.updateOne(
+    { email: "jan.kowalski@gmail.com" },
+    {
+      $push: {
+        zamowienia: {
+          produkt_id: produkt._id,
+          typ: "wypozyczenie",
+          data_start: new Date(),
+          data_koniec: new Date(new Date().getTime() + 14*24*60*60*1000) // 14 dni od teraz
+        }
       }
     }
-  }
-)
+  );
+
+  // Aktualizuj stan magazynowy produktu
+  db.produkty.updateOne(
+    { _id: produkt._id },
+    {
+      $inc: {
+        ilosc_w_magazynie: -1,
+        ilosc_wypozyczona: 1
+      }
+    }
+  );
+}
 ```
+
+![img_3.png](img_3.png)
+
 Zalety:  
 Wszystkie zamówienia klienta od razu zaktualizowane w jednym dokumencie
 Szybki dostęp do kompletnej historii klienta
@@ -1978,21 +2029,24 @@ Wszystkie operacje (rezerwacje, wypożyczenia, oceny) są zapisane jako osobne z
 1. **Znalezienie wszystkich operacji wypożyczenia dla określonego produktu:**
 
 ```js
+let produktId = db.produkty.findOne({typ: "film"})._id;
+
+// Wyszukanie wszystkich zdarzeń wypożyczenia dla tego produktu
 db.dzialania.find(
   {
-    typ_zdarzenia: "wypozyczenie",
-    produkt_id: ObjectId("id_produktu")
+    produkt_id: produktId
   },
   {
-    _id: 1,
-    data_zdarzenia: 1,
-    klient_id: 1,
+    _id: 0,
+    dane_zdarzenia: 1,
+    typ_zdarzenia: 1,
     pracownik_id: 1,
-    "dane_zdarzenia.data_start": 1,
-    "dane_zdarzenia.data_koniec": 1
   }
-).sort({ data_zdarzenia: -1 })
+).sort({ data_zdarzenia: -1 });
+
 ```
+
+![img_4.png](img_4.png)
 
 Zalety:  
 Pełna historia wszystkich operacji w systemie
@@ -2047,6 +2101,8 @@ db.dzialania.aggregate([
 ])
 ```
 
+![img_5.png](img_5.png)
+
 Zalety:  
 Doskonałe do analityki i raportowania
 Wszystkie zdarzenia chronologicznie w jednym miejscu
@@ -2097,6 +2153,8 @@ db.klienci_hybrid.find(
 )
 ```
 
+![img_6.png](img_6.png)
+
 Zalety:  
 Szybkie wyszukiwanie po zagnieżdżonych atrybutach
 Brak konieczności łączenia kolekcji przy często używanych danych
@@ -2126,6 +2184,8 @@ db.klienci_hybrid.aggregate([
   }
 ])
 ```
+
+![img_7.png](img_7.png)
 
 Zalety:
 Natychmiastowy dostęp do zagnieżdżonych danych
